@@ -46,11 +46,11 @@ BEGIN
 END
 GO
 
-/* Drop table dw_fudgeco.DimDate */
-IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = OBJECT_ID(N'dw_fudgeco.DimDate') AND OBJECTPROPERTY(id, N'IsUserTable') = 1)
+/* Drop table dw_fudgeco.dim_date */
+IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = OBJECT_ID(N'dw_fudgeco.dim_date') AND OBJECTPROPERTY(id, N'IsUserTable') = 1)
 BEGIN
-	DROP TABLE dw_fudgeco.DimDate
-	PRINT('TABLE dw_fudgeco.DimDate dropped.')
+	DROP TABLE dw_fudgeco.dim_date
+	PRINT('TABLE dw_fudgeco.dim_date dropped.')
 END
 GO
 
@@ -75,7 +75,7 @@ GO
  
 
 -- Create Date dimension
-CREATE TABLE [dw_fudgeco].[DimDate]
+CREATE TABLE [dw_fudgeco].[dim_date]
 (
 	[DateKey]       INT         NOT NULL,
 	[Date]          DATETIME    NOT NULL,
@@ -91,9 +91,9 @@ CREATE TABLE [dw_fudgeco].[DimDate]
 	[QuarterName]   NCHAR(10)   NOT NULL,
 	[Year]          INT         NOT NULL,
 	[IsAWeekday]    VARCHAR(1)  NOT NULL DEFAULT (('N')),
-	CONSTRAINT pkNorthwindDimDate PRIMARY KEY ([DateKey])
+	CONSTRAINT pkNorthwinddim_date PRIMARY KEY ([DateKey])
 )
-PRINT 'TABLE dw_fudgeco.DimDate created.'
+PRINT 'TABLE dw_fudgeco.dim_date created.'
 GO
  
 -- Create Customer Dimension
@@ -136,38 +136,19 @@ GO
 
 CREATE TABLE [dw_fudgeco].[fact_sales]
 (
-	[fact_sales_key]		INT	IDENTITY	NOT NULL,	-- Fact sales surrogate key
-	[transaction_id]		INT				NOT NULL,	-- Business key pt 1.
-	[order_type]			CHAR(1)			NOT NULL,	-- Business key pt 2.
-	[transaction_date_key]	INT				NOT NULL,	-- Ref. to DimDate
-	[customer_key]			INT				NOT NULL,	-- Ref. to dim_customer
-	[commodity_key]			INT				NOT NULL,	-- Ref. to dim_commodity
-	[transaction_quantity]	INT				NOT NULL,
-	[transaction_total]
--- transaction_gross_profit
-
-
-	CONSTRAINT pk_dw_fudgeco_fact_sales PRIMARY KEY ([fact_sales_key]),
-	CONSTRAINT chk_dw_fudgeco_fact_sales_order_type CHECK ([order_type] IN ('m', 'f')),
-    CONSTRAINT chk_dw_fudgeco_fact_sales_01 UNIQUE (order_id, order_type),
-	CONSTRAINT fk_dw_fudgeco_fact_sales_transaction_date_key FOREIGN KEY (transaction_date_key) REFERENCES DimDate(DateKey),
-	CONSTRAINT fk_dw_fudgeco_fact_sales_customer_key 		 FOREIGN KEY (customer_key)			REFERENCES dim_customer(customer_key),
-	CONSTRAINT fk_dw_fudgeco_fact_sales_commodity_key 		 FOREIGN KEY (commodity_key)		REFERENCES dim_commodity(commodity_key)
-
+	[fact_sales_key]			INT	IDENTITY	NOT NULL,	-- Fact sales surrogate key
+	[transaction_id]			INT				NOT NULL,	-- Business key pt 1. (fm.Orders.OrderID or fl.acct_bill.ab_id)
+	[commodity_key]				INT				NOT NULL,	-- Business key pt 2. Ref. to dim_commodity
+	[transaction_date_key]		INT				NOT NULL,	-- Business key pt 3. Ref. to dim_date
+	[customer_key]				INT				NOT NULL,	-- Business key pt 4. Ref. to dim_customer
+	[transaction_quantity]		INT				NOT NULL,
+	[transaction_total]			DECIMAL(10,2)	NOT NULL,
+	[transaction_gross_profit]	DECIMAL(10,2)	NOT NULL,
+	CONSTRAINT pk_dw_fudgeco_fact_sales                      PRIMARY KEY ([fact_sales_key]),
+	CONSTRAINT fk_dw_fudgeco_fact_sales_transaction_date_key FOREIGN KEY (transaction_date_key) REFERENCES [dw_fudgeco].dim_date(DateKey),
+	CONSTRAINT fk_dw_fudgeco_fact_sales_customer_key 		 FOREIGN KEY (customer_key)			REFERENCES [dw_fudgeco].dim_customer(customer_key),
+	CONSTRAINT fk_dw_fudgeco_fact_sales_commodity_key 		 FOREIGN KEY (commodity_key)		REFERENCES [dw_fudgeco].dim_commodity(commodity_key),
+    CONSTRAINT chk_dw_fudgeco_fact_sales_01 				 UNIQUE (transaction_id, commodity_key, transaction_date_key, customer_key)
 )
 PRINT 'TABLE dw_fudgeco.fact_sales created.'
 GO
-
---  fact_sales_combo
-
--- /* 
--- - Combine fm.Orders.OrderID and fl.acct_bill.ab_id for transaction_key.
--- - Use term commodity to include 
-
--- Attributes to be integrated/ derived
--- - transaction_total = product_retail_price * order_qty or ab_billed_amount
--- - transaction_gross_profit = (product_retail_price - product_wholesale_price) * order_qty + ab_billed_amount
--- */
-
-
-
